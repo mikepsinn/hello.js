@@ -1,4 +1,3 @@
-/*! hellojs v1.16.1 | (c) 2012-2017 Andrew Dodson | MIT https://adodson.com/hello.js/LICENSE */
 // ES5 Object.create
 if (!Object.create) {
 
@@ -1391,16 +1390,16 @@ hello.utils.extend(hello.utils, {
 		// Credit: http://www.xtf.dk/2011/08/center-new-popup-window-even-on.html
 		// Fixes dual-screen position                         Most browsers      Firefox
 
-		if (options.height) {
+		if (options.height && options.top === undefined) {
 			var dualScreenTop = window.screenTop !== undefined ? window.screenTop : screen.top;
 			var height = screen.height || window.innerHeight || documentElement.clientHeight;
-			options.top = (options.top) ? options.top : parseInt((height - options.height) / 2, 10) + dualScreenTop;
+			options.top = parseInt((height - options.height) / 2, 10) + dualScreenTop;
 		}
 
-		if (options.width) {
+		if (options.width && options.left === undefined) {
 			var dualScreenLeft = window.screenLeft !== undefined ? window.screenLeft : screen.left;
 			var width = screen.width || window.innerWidth || documentElement.clientWidth;
-			options.left = (options.left) ? options.left : parseInt((width - options.width) / 2, 10) + dualScreenLeft;
+			options.left = parseInt((width - options.width) / 2, 10) + dualScreenLeft;
 		}
 
 		// Convert options into an array
@@ -4158,8 +4157,12 @@ if (typeof chrome === 'object' && typeof chrome.identity === 'object' && chrome.
 	}
 
 	function formatPhotos(o) {
-		o.data = o.feed.entry.map(formatEntry);
-		delete o.feed;
+		if ('feed' in o) {
+			o.data = 'entry' in o.feed ? o.feed.entry.map(formatEntry) : [];
+			delete o.feed;
+		}
+
+		return o;
 	}
 
 	// Google has a horrible JSON API
@@ -5073,6 +5076,107 @@ if (typeof chrome === 'object' && typeof chrome.identity === 'object' && chrome.
 		p.data = (p.method !== 'delete').toString();
 		p.method = 'put';
 		callback('people/~/network/updates/key=' + id + '/is-liked');
+	}
+
+})(hello);
+
+(function(hello) {
+
+	hello.init({
+
+		quantimodo: {
+
+			name: 'QuantiModo',
+
+			oauth: {
+				version: 2,
+				auth: 'https://app.quantimo.do/api/v1/oauth2/authorize',
+				grant: 'https://app.quantimo.do/api/v1/oauth2/token',
+				response_type: 'code'
+			},
+
+			scope: {
+				basic: 'basic',
+				email: 'basic'
+			},
+			scope_delim: ' ',
+
+			base: 'https://app.quantimo.do/api/v1/',
+
+			get: {
+				me: 'user'
+			},
+
+			wrap: {
+				me: function(o, headers) {
+
+					formatError(o, headers);
+					formatUser(o);
+
+					return o;
+				},
+
+				'default': function(o, headers, req) {
+
+					formatError(o, headers);
+
+					if (Array.isArray(o)) {
+						o = {data:o};
+					}
+
+					if (o.data) {
+						paging(o, headers, req);
+						o.data.forEach(formatUser);
+					}
+
+					return o;
+				}
+			},
+
+			xhr: function(p) {
+
+				if (p.method !== 'get' && p.data) {
+
+					// Serialize payload as JSON
+					p.headers = p.headers || {};
+					p.headers['Content-Type'] = 'application/json';
+					if (typeof (p.data) === 'object') {
+						p.data = JSON.stringify(p.data);
+					}
+				}
+
+				return true;
+			}
+		}
+	});
+
+	function formatError(o, headers) {
+		var code = headers ? headers.statusCode : (o && 'meta' in o && 'status' in o.meta && o.meta.status);
+		if ((code === 401 || code === 403)) {
+			o.error = {
+				code: 'access_denied',
+				message: o.message || (o.data ? o.data.message : 'Could not get response')
+			};
+			delete o.message;
+		}
+	}
+
+	function formatUser(o) {
+		if (o.id) {
+			o.thumbnail = o.picture = o.avatar_url;
+			o.name = o.login;
+		}
+	}
+
+	function paging(res, headers, req) {
+		if (res.data && res.data.length && headers && headers.Link) {
+			var next = headers.Link.match(/<(.*?)>;\s*rel=\"next\"/);
+			if (next) {
+				res.paging = {
+					next: next[1]
+				};
+			}
+		}
 	}
 
 })(hello);

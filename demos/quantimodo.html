@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+
+<link rel="stylesheet" href="/adorn/adorn.css"/>
+<script src="/adorn/adorn.js" async></script>
+
+<script src="client_ids.js"></script>
+<script src="../src/hello.polyfill.js"></script>
+<script src="../src/hello.js"></script>
+<script src="../src/modules/quantimodo.js"></script>
+
+<title>hello( quantimodo )</title>
+<h1>hello( quantimodo )</h1>
+
+<button id='quantimodo' onclick="profile('quantimodo');">Get Profile</button>
+<script class="pre">
+function profile(network) {
+	var quantimodo = hello(network);
+	quantimodo.login().then(function() {
+		// get user profile data
+		return quantimodo.api('me').then(function() {
+			alert('You are signed in to Facebook');
+		}, function(e) {
+			alert('Signin error: ' + e.error.message);
+		});;
+	})
+	.then(function(p) {
+		document.getElementById(network).innerHTML = "<img src='"+ p.thumbnail + "' width=24/>Connected to "+ network +" as " + p.name;
+	});
+}
+</script>
+
+<h2>Get user email</h2>
+
+<button onclick="userEmail('quantimodo', 'email');">Get email</button>
+
+<pre id="email"></pre>
+<script class="pre">
+function userEmail(network, target) {
+	var quantimodo = hello(network)
+	quantimodo.login({
+		scope:'email'
+	})
+	.then(function() {
+		// Get a bespoke endpoint from quantimodo
+		return quantimodo.api('/user/emails');
+	}).then(function(r) {
+		document.getElementById(target).innerHTML = JSON.stringify(r, null, 2);
+	});
+}
+</script>
+
+<h2>List user repos</h2>
+
+<button onclick="userRepos('quantimodo', 'repo_list');">Get a list of repos</button>
+
+<pre id="repo_list"></pre>
+<script class="pre">
+function userRepos(network, target) {
+	var quantimodo = hello(network)
+	quantimodo.login()
+	.then(function() {
+		// Get a bespoke endpoint from quantimodo
+		return quantimodo.api('/user/repos');
+	}).then(function(r) {
+		document.getElementById(target).innerHTML = JSON.stringify(r, null, 2);
+	});
+}
+</script>
+
+<script class="pre">
+hello.init({
+	quantimodo : 'quantimodo'
+},{
+	redirect_uri : '../redirect.html',
+//	oauth_proxy : OAUTH_PROXY_URL
+});
+</script>
